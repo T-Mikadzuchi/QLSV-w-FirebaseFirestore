@@ -95,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
                             public void onSuccess(DocumentReference documentReference) {
                                 pd.dismiss();
                                 svList.add(sv);
+                                idList.add(documentReference.getId());
                                 adapter.notifyDataSetChanged();
                                 name.setText("");
                                 mssv.setText("");
