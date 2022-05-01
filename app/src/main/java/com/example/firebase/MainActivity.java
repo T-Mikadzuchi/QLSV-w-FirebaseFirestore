@@ -3,6 +3,7 @@ package com.example.firebase;
 import static android.content.ContentValues.TAG;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.ProgressDialog;
@@ -25,8 +26,12 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.IgnoreExtraProperties;
+import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
@@ -59,29 +64,60 @@ public class MainActivity extends AppCompatActivity {
         UserAdapter adapter = new UserAdapter(this, svList);
         lv.setAdapter(adapter);
 
-        pd.setTitle("Loading Data...");
-        pd.show();
-        db.collection("sv")
-                .get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            for (QueryDocumentSnapshot document : task.getResult()) {
-                                SV sv = new SV(document.getString("hoten"), document.getString("mssv"));
-                                svList.add(sv);
-                                idList.add(document.getId());
-                                adapter.notifyDataSetChanged();
-                                Log.d(TAG, document.getId() + " => " + document.getData());
-                                pd.dismiss();
-                            }
-                        } else {
-                            Log.w(TAG, "Error getting documents.", task.getException());
-                            pd.dismiss();
-                        }
-                    }
-                });
+        //get data realtime update
+        db.collection("sv").addSnapshotListener(new EventListener<QuerySnapshot>() {
+            @Override
+            public void onEvent(@Nullable QuerySnapshot value, @Nullable FirebaseFirestoreException error) {
+                if (error != null) {
+                    Log.w(TAG, "listen:error", error);
+                    return;
+                }
 
+                for (DocumentChange dc : value.getDocumentChanges()) {
+                    switch (dc.getType()) {
+                        case ADDED:
+                            Log.d(TAG, "New sv: " + dc.getDocument().getData());
+                            break;
+                        case MODIFIED:
+                            Log.d(TAG, "Modified sv: " + dc.getDocument().getData());
+                            break;
+                        case REMOVED:
+                            Log.d(TAG, "Removed sv: " + dc.getDocument().getData());
+                            break;
+                    }
+                }
+
+                //get data from firebase
+                pd.setTitle("Loading Data...");
+                pd.show();
+                svList.clear();
+                idList.clear();
+                adapter.notifyDataSetChanged();
+                db.collection("sv")
+                        .get()
+                        .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                            @Override
+                            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                                if (task.isSuccessful()) {
+                                    for (QueryDocumentSnapshot document : task.getResult()) {
+                                        SV sv = new SV(document.getString("hoten"), document.getString("mssv"));
+                                        svList.add(sv);
+                                        idList.add(document.getId());
+                                        adapter.notifyDataSetChanged();
+                                        Log.d(TAG, document.getId() + " => " + document.getData());
+                                        pd.dismiss();
+                                    }
+                                } else {
+                                    Log.w(TAG, "Error getting documents.", task.getException());
+                                    pd.dismiss();
+                                }
+                            }
+                        });
+
+            }
+        });
+
+        //add data
         add.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -94,9 +130,9 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onSuccess(DocumentReference documentReference) {
                                 pd.dismiss();
-                                svList.add(sv);
+/*                                svList.add(sv);
                                 idList.add(documentReference.getId());
-                                adapter.notifyDataSetChanged();
+                                adapter.notifyDataSetChanged();*/
                                 name.setText("");
                                 mssv.setText("");
                                 Log.d(TAG, "DocumentSnapshot added with ID: " + documentReference.getId());
@@ -112,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        //delete data
         del.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -123,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
                         .delete().addOnCompleteListener(new OnCompleteListener<Void>() {
                             @Override
                             public void onComplete(@NonNull Task<Void> task) {
-                                svList.remove(pos);
+                                //svList.remove(pos);
                                 adapter.notifyDataSetChanged();
                                 name.setText("");
                                 mssv.setText("");
@@ -138,6 +175,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        //update data
         update.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -150,9 +188,9 @@ public class MainActivity extends AppCompatActivity {
                         .addOnCompleteListener(new OnCompleteListener<Void>() {
                             @Override
                             public void onComplete(@NonNull Task<Void> task) {
-                                svList.get(pos).setHoten(name.getText().toString());
+/*                                svList.get(pos).setHoten(name.getText().toString());
                                 svList.get(pos).setMssv(mssv.getText().toString());
-                                adapter.notifyDataSetChanged();
+                                adapter.notifyDataSetChanged();*/
                                 name.setText("");
                                 mssv.setText("");
                                 pd.dismiss();
